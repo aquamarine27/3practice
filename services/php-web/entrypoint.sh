@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 set -e
 
 APP_DIR="/var/www/html"
@@ -23,4 +23,4 @@ chown -R www-data:www-data "$APP_DIR"
 chmod -R 775 "$APP_DIR/storage" "$APP_DIR/bootstrap/cache" || true
 
 echo "[php] starting php-fpm"
-php-fpm -F
+exec php-fpm -F
