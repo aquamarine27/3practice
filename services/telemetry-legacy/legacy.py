@@ -80,8 +80,12 @@ def generate_xlsx(data):
     filename = f"telemetry_{ts_file}.xlsx"
     filepath = os.path.join(XLSX_DIR, filename)
 
+
+    data_for_xlsx = data.copy()
+    if isinstance(data_for_xlsx.get("recorded_at"), datetime):
+        data_for_xlsx["recorded_at"] = data_for_xlsx["recorded_at"].replace(tzinfo=None)
     
-    df = pd.DataFrame([data])
+    df = pd.DataFrame([data_for_xlsx])
     
 
     try:
@@ -121,7 +125,7 @@ def copy_to_postgres(filepath, data):
             writer.writerow(row)
 
 
-   
+    
     conn = None
     try:
         conn = psycopg2.connect(**DB_PARAMS)
