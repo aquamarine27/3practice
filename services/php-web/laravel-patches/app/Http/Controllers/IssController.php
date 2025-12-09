@@ -2,18 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Clients\IssClient; 
+
 class IssController extends Controller
 {
+    public function __construct(
+        protected IssClient $issClient 
+    ) {}
+
     public function index()
     {
-        $base = getenv('RUST_BASE') ?: 'http://rust_iss:3000';
+        
+        $lastJson = $this->issClient->getLastIssData();
+        $trendJson = $this->issClient->getIssTrend();
 
-        $last  = @file_get_contents($base.'/last');
-        $trend = @file_get_contents($base.'/iss/trend');
+        // Базовый URL для отображения в представлении
+        $base = rtrim(env('RUST_BASE') ?: 'http://rust_iss:3000', '/');
 
-        $lastJson  = $last  ? json_decode($last,  true) : [];
-        $trendJson = $trend ? json_decode($trend, true) : [];
 
-        return view('iss', ['last' => $lastJson, 'trend' => $trendJson, 'base' => $base]);
+        return view('iss', [
+            'last' => $lastJson, 
+            'trend' => $trendJson, 
+            'base' => $base
+        ]);
     }
 }

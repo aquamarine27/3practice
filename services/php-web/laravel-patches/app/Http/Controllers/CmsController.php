@@ -1,11 +1,29 @@
 <?php
+
 namespace App\Http\Controllers;
-use Illuminate\Support\Facades\DB;
+
+use App\Repositories\CmsRepository; 
+use Illuminate\Support\Facades\App;
+
 
 class CmsController extends Controller {
-  public function page(string $slug) {
-    $row = DB::selectOne("SELECT title, content FROM cms_blocks WHERE slug = ? AND is_active = TRUE", [$slug]);
-    if (!$row) abort(404);
-    return response()->view('cms.page', ['title' => $row->title, 'html' => $row->content]);
-  }
+
+    public function __construct(
+        protected CmsRepository $cmsRepository 
+    ) {}
+
+    public function page(string $slug) {
+
+        $row = $this->cmsRepository->getPageBySlug($slug); 
+        
+        if (!$row) abort(404);
+
+        $purifier = App::make('html.purifier');
+        $safeHtml = $purifier->purify($row->content);
+        
+        return view('cms.page', [
+            'title' => $row->title, 
+            'html' => $safeHtml 
+        ]);
+    }
 }
