@@ -26,7 +26,7 @@ os.makedirs(XLSX_DIR, exist_ok=True)
 
 
 def generate_data_row():
-    """Генерирует одну строку данных, используя DATETIME объект."""
+    """Генерирует одну строку данных, используя DATETIME объект"""
     recorded_at = datetime.now(timezone.utc).replace(microsecond=0)
     voltage = round(random.uniform(3.2, 12.6), 2)
     temp = round(random.uniform(-50.0, 80.0), 2)
@@ -48,7 +48,7 @@ def generate_data_row():
 
 
 def generate_csv():
-    """Генерирует CSV-файл, конвертируя DATETIME в ISO-строку."""
+    """Генерирует CSV-файл, конвертируя DATETIME в ISO-строку"""
     data = generate_data_row()
     
     ts_file = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -75,7 +75,7 @@ def generate_csv():
 
 
 def generate_xlsx(data):
-    """Генерирует XLSX-файл, используя Pandas и XlsxWriter (п. 2.3)."""
+    """Генерирует XLSX-файл, используя Pandas и XlsxWriter"""
     ts_file = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     filename = f"telemetry_{ts_file}.xlsx"
     filepath = os.path.join(XLSX_DIR, filename)
@@ -96,7 +96,7 @@ def generate_xlsx(data):
 
 
 def copy_to_postgres(filepath, data):
-    """Импортирует данные из CSV в PostgreSQL с учетом новых колонок."""
+    """Импортирует данные из CSV в PostgreSQL"""
     
     columns = list(data.keys())
     
