@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS telemetry_legacy (
     
     recorded_at TIMESTAMPTZ NOT NULL,
     voltage NUMERIC(6,2) NOT NULL,
-    temp NUMERIC(6,2) NOT NULL
+    temp NUMERIC(6,2) NOT NULL,
+    source_file TEXT NOT NULL  -- added
 );
 
 CREATE TABLE IF NOT EXISTS cms_pages (

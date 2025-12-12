@@ -1,7 +1,6 @@
 import os
 import time
 import random
-import csv
 from datetime import datetime, timezone
 import psycopg2
 from psycopg2 import sql
@@ -25,7 +24,7 @@ os.makedirs(CSV_DIR, exist_ok=True)
 os.makedirs(XLSX_DIR, exist_ok=True)
 
 
-def generate_data_row():
+def generate_data_row(filename):
     """Генерирует одну строку данных, используя DATETIME объект"""
     recorded_at = datetime.now(timezone.utc).replace(microsecond=0)
     voltage = round(random.uniform(3.2, 12.6), 2)
@@ -44,17 +43,17 @@ def generate_data_row():
         "voltage": voltage,
         "temp": temp,
         "mission_status": mission_status,
+        "source_file": filename  -- added
     }
 
 
 def generate_csv():
     """Генерирует CSV-файл, конвертируя DATETIME в ISO-строку"""
-    data = generate_data_row()
-    
     ts_file = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     filename = f"telemetry_{ts_file}.csv"
     filepath = os.path.join(CSV_DIR, filename)
-
+    data = generate_data_row(filename)
+    
     header = list(data.keys())
     row_values = list(data.values())
     
