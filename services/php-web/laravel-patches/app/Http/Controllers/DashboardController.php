@@ -2,105 +2,111 @@
 
 namespace App\Http\Controllers;
 
-use App\Clients\IssClient;      
-use App\Clients\JwstClient;    
-use App\Repositories\CmsRepository; 
 use Illuminate\Http\Request;
+use App\Clients\DashboardClient;
 
 class DashboardController extends Controller
 {
-    public function __construct(
-        protected IssClient $issClient,      
-        protected JwstClient $jwstClient,   
-        protected CmsRepository $cmsRepository 
-    ) {}
+    private DashboardClient $client;
 
-    public function index()
+    public function __construct(DashboardClient $client)
     {
-        // данные МКС через Client
-        $iss = $this->issClient->getLastIssData();
-        
-        // контент CMS-блока через Repository 
-        $cmsBlockContent = $this->cmsRepository->getContentBySlug('dashboard_experiment');
-        
-        // ViewModel для представления
-        $viewModel = [
-            'iss' => $iss,
-            'cmsBlockContent' => $cmsBlockContent, 
-            'metrics' => [
-                'iss_speed' => $iss['payload']['velocity'] ?? null,
-                'iss_alt'   => $iss['payload']['altitude'] ?? null,
-                'neo_total' => 0, 
-            ],
-        ];
-
-       
-        return view('dashboard', $viewModel);
+        $this->client = $client;
     }
 
- 
-    public function jwstFeed(Request $r)
+    // Main dashboard view
+    public function index()
     {
-        // Валидация входных данных
-        $src   = $r->query('source', 'jpg');
-        $sfx   = trim((string)$r->query('suffix', ''));
-        $prog  = trim((string)$r->query('program', ''));
-        $instF = strtoupper(trim((string)$r->query('instrument', '')));
-        $page  = max(1, (int)$r->query('page', 1));
-        $per   = max(1, min(60, (int)$r->query('perPage', 24)));
+        $issData = $this->client->getIssLast();
 
-        // Выбор эндпоинта
-        $path = 'all/type/jpg';
-        if ($src === 'suffix' && $sfx !== '') $path = 'all/suffix/'.ltrim($sfx,'/');
-        if ($src === 'program' && $prog !== '') $path = 'program/id/'.rawurlencode($prog);
+        $refreshInterval = (int)(getenv('ISS_EVERY_SECONDS') ?: 120);
 
-        // Вызов API через Client
-        $resp = $this->jwstClient->get($path, ['page'=>$page, 'perPage'=>$per]);
-        
-        // Логика нормализации 
-        $list = $resp['body'] ?? ($resp['data'] ?? (is_array($resp) ? $resp : []));
-        $items = [];
-        foreach ($list as $it) {
-            if (!is_array($it)) continue;
+        return view('dashboard', [
+            'iss'               => $issData,
+            'issEverySeconds'   => $refreshInterval,
+        ]);
+    }
 
-            $url = null;
-            $loc = $it['location'] ?? $it['url'] ?? null;
-            $thumb = $it['thumbnail'] ?? null;
-            foreach ([$loc, $thumb] as $u) {
-                if (is_string($u) && preg_match('~\.(jpg|jpeg|png)(\?.*)?$~i', $u)) { $url = $u; break; }
+    // JWST images feed 
+    public function jwstFeed(Request $request)
+    {
+        // Sanitize input
+        $source     = $request->query('source', 'jpg');
+        $suffix     = trim((string)$request->query('suffix', ''));
+        $program    = trim((string)$request->query('program', ''));
+        $instFilter = strtoupper(trim((string)$request->query('instrument', '')));
+        $page       = max(1, (int)$request->query('page', 1));
+        $perPage    = max(1, min(60, (int)$request->query('perPage', 24)));
+
+        // Determine API path
+        $apiPath = 'all/type/jpg';
+        if ($source === 'suffix' && $suffix !== '') {
+            $apiPath = 'all/suffix/' . ltrim($suffix, '/');
+        }
+        if ($source === 'program' && $program !== '') {
+            $apiPath = 'program/id/' . rawurlencode($program);
+        }
+
+        $rawData = $this->client->getJwstFeed($apiPath, ['page' => $page, 'perPage' => $perPage]);
+
+        $itemsList = $rawData['body'] ?? $rawData['data'] ?? (is_array($rawData) ? $rawData : []);
+
+        $finalItems = [];
+        foreach ($itemsList as $entry) {
+            if (!is_array($entry)) continue;
+            $imageUrl = null;
+            $candidates = [$entry['location'] ?? null, $entry['thumbnail'] ?? null, $entry['url'] ?? null];
+
+            foreach ($candidates as $url) {
+                if (is_string($url) && preg_match('~\.(jpg|jpeg|png)(\?.*)?$~i', $url)) {
+                    $imageUrl = $url;
+                    break;
+                }
             }
-            if (!$url) {
-                $url = \App\Clients\JwstClient::pickImageUrl($it); 
-            }
-            if (!$url) continue;
 
-            $instList = [];
-            foreach (($it['details']['instruments'] ?? []) as $I) {
-                if (is_array($I) && !empty($I['instrument'])) $instList[] = strtoupper($I['instrument']);
+            if (!$imageUrl) {
+                $imageUrl = DashboardClient::findImageUrl($entry);
             }
-            if ($instF && $instList && !in_array($instF, $instList, true)) continue;
 
-            $items[] = [
-                'url'       => $url,
-                'obs'       => (string)($it['observation_id'] ?? $it['observationId'] ?? ''),
-                'program'   => (string)($it['program'] ?? ''),
-                'suffix'    => (string)($it['details']['suffix'] ?? $it['suffix'] ?? ''),
-                'inst'      => $instList,
-                'caption'   => trim(
-                    (($it['observation_id'] ?? '') ?: ($it['id'] ?? '')) .
-                    ' · P' . ($it['program'] ?? '-') .
-                    (($it['details']['suffix'] ?? '') ? ' · ' . $it['details']['suffix'] : '') .
-                    ($instList ? ' · ' . implode('/', $instList) : '')
-                ),
-                'link'      => $loc ?: $url,
+            if (!$imageUrl) continue;
+
+            $instruments = [];
+            foreach (($entry['details']['instruments'] ?? []) as $inst) {
+                if (is_array($inst) && !empty($inst['instrument'])) {
+                    $instruments[] = strtoupper($inst['instrument']);
+                }
+            }
+
+            // Filters
+            if ($instFilter && $instruments && !in_array($instFilter, $instruments, true)) {
+                continue;
+            }
+
+            // Caption
+            $caption = trim(
+                (($entry['observation_id'] ?? $entry['id'] ?? '') ?: '') .
+                ' · P' . ($entry['program'] ?? '-') .
+                (($entry['details']['suffix'] ?? $entry['suffix'] ?? '') ? ' · ' . ($entry['details']['suffix'] ?? $entry['suffix'] ?? '') : '') .
+                ($instruments ? ' · ' . implode('/', $instruments) : '')
+            );
+
+            $finalItems[] = [
+                'url'      => $imageUrl,
+                'obs'      => (string)($entry['observation_id'] ?? $entry['observationId'] ?? ''),
+                'program'  => (string)($entry['program'] ?? ''),
+                'suffix'   => (string)($entry['details']['suffix'] ?? $entry['suffix'] ?? ''),
+                'inst'     => $instruments,
+                'caption'  => $caption,
+                'link'     => $entry['location'] ?? $imageUrl,
             ];
-            if (count($items) >= $per) break;
+
+            if (count($finalItems) >= $perPage) break;
         }
 
         return response()->json([
-            'source' => $path,
-            'count'  => count($items),
-            'items'  => $items,
+            'source' => $apiPath,
+            'count'  => count($finalItems),
+            'items'  => $finalItems,
         ]);
     }
 }
