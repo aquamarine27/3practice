@@ -4,7 +4,7 @@ use Illuminate\Support\Str;
 
 return [
     'default' => env('DB_CONNECTION', 'pgsql'),
-    'migrations' => null,  // отключено
+    'migrations' => null, // turn off laravel migrations
     'connections' => [
         'pgsql' => [
             'driver' => 'pgsql',
