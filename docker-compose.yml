@@ -4,7 +4,6 @@ networks:
 volumes:
   pgdata:
   appdata:
-  csvdata:
   redisdata:
 
 services:
@@ -130,8 +129,5 @@ services:
         condition: service_healthy
     environment:
       GEN_PERIOD_SEC: ${PAS_LEGACY_PERIOD:-300}
-      CSV_OUT_DIR: /data/csv
-    volumes:
-      - csvdata:/data/csv
     networks:
       - backend

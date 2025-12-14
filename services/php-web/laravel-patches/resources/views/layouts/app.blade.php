@@ -23,7 +23,7 @@
       font-weight: bold;
       font-size: 1.4rem;
       color: #ffffff !important;
-      cursor: default; /* убираем указатель руки */
+      cursor: default;
     }
 
     .nav-link {
@@ -84,6 +84,7 @@
           <a class="nav-link {{ request()->is('astro') ? 'active' : '' }}" href="/astro">AstronomyAPI</a>
           <a class="nav-link {{ request()->is('iss') ? 'active' : '' }}" href="/iss">ISS</a>
           <a class="nav-link {{ request()->is('osdr') ? 'active' : '' }}" href="/osdr">OSDR</a>
+          <a class="nav-link {{ request()->is('telemetry') ? 'active' : '' }}" href="/telemetry">Telemetry</a>
           <a class="nav-link {{ request()->is('cms') ? 'active' : '' }}" href="/cms">CMS</a>
         </div>
       </div>
