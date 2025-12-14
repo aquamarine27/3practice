@@ -1,29 +1,26 @@
 <?php
 
 namespace App\Http\Controllers;
-
-use App\Clients\IssClient; 
+use Illuminate\Http\Request;
 
 class IssController extends Controller
 {
-    public function __construct(
-        protected IssClient $issClient 
-    ) {}
-
-    public function index()
+    public function index(Request $request)
     {
+        $serviceUrl = getenv('RUST_BASE') ?: 'http://rust_iss:3000';
+
+        // МКС position
+        $currentRawResponse = @file_get_contents($serviceUrl . '/last');
+        $currentPosition    = $currentRawResponse ? json_decode($currentRawResponse, true) : [];
         
-        $lastJson = $this->issClient->getLastIssData();
-        $trendJson = $this->issClient->getIssTrend();
-
-        // Базовый URL для отображения в представлении
-        $base = rtrim(env('RUST_BASE') ?: 'http://rust_iss:3000', '/');
-
+        // data MKC history
+        $historyRawResponse = @file_get_contents($serviceUrl . '/iss/trend');
+        $historyData        = $historyRawResponse ? json_decode($historyRawResponse, true) : [];
 
         return view('iss', [
-            'last' => $lastJson, 
-            'trend' => $trendJson, 
-            'base' => $base
+            'last'  => $currentPosition,
+            'trend' => $historyData,
+            'base'  => $serviceUrl,
         ]);
     }
 }
